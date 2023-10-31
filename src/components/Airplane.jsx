@@ -14,23 +14,31 @@ export function Airplane(props) {
   })
 
   return (
+    <>
+    {/* to have more depth, add a light to the model */}
+    <directionalLight position={[0, 3, 1]} intensity={0.1} />
     <group {...props} dispose={null}>
       <mesh
         castShadow
         receiveShadow
         geometry={nodes.wholePlane.geometry}
-        material={materials.plane}
+        // material={materials.plane}
         position={[-0.012, 0.138, 0]}
-      />
+      >
+        <meshStandardMaterial color="white" />
+      </mesh>
       <mesh
         ref={helix}
         castShadow
         receiveShadow
         geometry={nodes.helix.geometry}
-        material={materials.plane}
+        // material={materials.plane}
         position={[1.101, 0.092, 0]}
-      />
+      >
+        <meshStandardMaterial color="white" />
+      </mesh>
     </group>
+    </>
   );
 }
 

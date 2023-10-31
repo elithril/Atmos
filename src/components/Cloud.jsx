@@ -1,18 +1,15 @@
 import React, { useRef } from "react";
 import { useGLTF } from "@react-three/drei";
+import { fadeOnBeforeCompile } from "../utils/fadeMaterial";
 
 export function Cloud({ opacity, ...props }) {
-  const { nodes, materials } = useGLTF("/cloud.glb");
+  const { nodes, materials } = useGLTF("/cloud2.gltf");
   return (
     <group {...props} dispose={null}>
-      <mesh
-        castShadow
-        receiveShadow
-        geometry={nodes.Node.geometry}
-        material={materials.lambert2SG}
-      >
+      <mesh geometry={nodes.Mball001.geometry}>
         <meshStandardMaterial
-          {...materials.lambert2SG}
+          onBeforeCompile={fadeOnBeforeCompile} // shader to fade elements when they are too far
+          envMapIntensity={2}
           transparent
           opacity={opacity}
         />
