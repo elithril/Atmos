@@ -64,8 +64,8 @@ const Experience = () => {
     // Math.PI / 2 => left
     // -Math.PI / /2 -> right
 
-    // Math.PI / 3 because we don't want to rotate fully
-    const angleRotation = (xDisplacement < 0 ? 1 : -1) * Math.min(Math.abs(xDisplacement), Math.PI / 3);
+    // Math.PI / 6 because we don't want to rotate fully
+    const angleRotation = (xDisplacement < 0 ? 1 : -1) * Math.min(Math.abs(xDisplacement), Math.PI / 6);
 
     // because we can't lerp a rotation, we need quaternions 
     const targetAirplaneQuaternion = new THREE.Quaternion().setFromEuler(
@@ -86,7 +86,7 @@ const Experience = () => {
     );
 
     airplane.current.quaternion.slerp(targetAirplaneQuaternion, delta * 2);
-    cameraGroup.current.quaternion.slerp(targetCameraQuaternion, delta * 0.5);
+    cameraGroup.current.quaternion.slerp(targetCameraQuaternion, delta);
 
     // lerp the camera group along the line
     cameraGroup.current.position.lerp(curPoint, delta * 24)
