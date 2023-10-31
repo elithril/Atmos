@@ -1,14 +1,18 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { Canvas } from '@react-three/fiber';
 import './App.css'
+import Experience from './components/Experience';
+import { ScrollControls } from '@react-three/drei';
 
 function App() {
-  const [count, setCount] = useState(0)
 
   return (
     <>
-      
+      <Canvas>
+        <color attach='background' args={["#ececec"]} />
+        <ScrollControls pages={5} damping={0.3}>
+          <Experience />
+        </ScrollControls>
+      </Canvas>
     </>
   )
 }
