@@ -2,11 +2,12 @@ import { Float, Line, OrbitControls, PerspectiveCamera, Text, useScroll } from "
 import Background from "./Background";
 import { Airplane } from "./Airplane";
 import { Cloud } from "./Cloud";
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from 'three';
 import { useFrame } from "@react-three/fiber";
 import TextSection from "./TextSection";
 import { gsap } from "gsap";
+import { usePlay } from "../contexts/Play";
 
 const LINE_NB_POINTS = 1000;
 const CURVE_DISTANCE = 250;
@@ -17,12 +18,18 @@ const FRICTION_DISTANCE = 42; // slow the movement when coming close to the text
 
 const Experience = () => {
   const scroll = useScroll();
+  const { play, setHasScroll, end, setEnd } = usePlay();
 
   const cameraGroup = useRef();
   const cameraRail = useRef();
   const airplane = useRef();
   const lastScroll = useRef(0);
   const timeline = useRef();
+  const sceneOpacity = useRef(0);
+  const lineMaterialRef = useRef();
+  const camera = useRef();
+  const planeInTl = useRef();
+  const planeOutTl = useRef();
 
   const backgroundColors = useRef({
     colorA: "#3535cc",
@@ -49,6 +56,39 @@ const Experience = () => {
     });
 
     timeline.current.pause();
+
+    planeInTl.current = gsap.timeline();
+    planeInTl.current.pause();
+    planeInTl.current.from(airplane.current.position, {
+      duration: 3,
+      z: 5,
+      y: -2,
+    });
+
+    planeOutTl.current = gsap.timeline();
+    planeOutTl.current.pause();
+
+    planeOutTl.current.to(
+      airplane.current.position,
+      {
+        duration: 10,
+        z: -250,
+        y: 10,
+      },
+      0
+    );
+    planeOutTl.current.to(
+      cameraRail.current.position,
+      {
+        duration: 8,
+        y: 12,
+      },
+      0
+    );
+    planeOutTl.current.to(airplane.current.position, {
+      duration: 1,
+      z: -1000,
+    });
   }, []);
 
   const curvePoints = useMemo(
@@ -292,20 +332,47 @@ We have a wide range of beverages!`,
         ),
         rotation: new THREE.Euler(Math.PI / 4, Math.PI / 6, 0),
       },
-      {
-        scale: new THREE.Vector3(4, 4, 4),
-        position: new THREE.Vector3(
-          curvePoints[7].x,
-          curvePoints[7].y,
-          curvePoints[7].z
-        ),
-        rotation: new THREE.Euler(0, 0, 0),
-      },
     ],
     []
   );
 
   useFrame((state, delta) => {
+
+    if (window.innerWidth > window.innerHeight) {
+      // LANDSCAPE
+      camera.current.fov = 30;
+      camera.current.position.z = 5;
+    } else {
+      // PORTRAIT
+      camera.current.fov = 80;
+      camera.current.position.z = 6;
+    }
+
+    if (lastScroll.current <= 0 && scroll.offset > 0) {
+      setHasScroll(true);
+    }
+
+    if (play && !end && sceneOpacity.current < 1) {
+      sceneOpacity.current = THREE.MathUtils.lerp(
+        sceneOpacity.current,
+        1,
+        delta * 0.1
+      );
+    }
+
+    if (end && sceneOpacity.current > 0) {
+      sceneOpacity.current = THREE.MathUtils.lerp(
+        sceneOpacity.current,
+        0,
+        delta
+      );
+    }
+
+    lineMaterialRef.current.opacity = sceneOpacity.current;
+
+    if (end) {
+      return;
+    }
 
     // get currentPoint based on purcentage of the scroll
     // round the value to get the closest index
@@ -419,56 +486,71 @@ We have a wide range of beverages!`,
     )
 
     airplane.current.quaternion.slerp(targetAirplaneQuaternion, delta * 2);
+
+    // if we're close to the last point..
+    if (cameraGroup.current.position.z < curvePoints[curvePoints.length - 1].z + 100) {
+      setEnd(true);
+      planeOutTl.current.play();
+    }
   })
 
+  useEffect(() => {
+    if (play) {
+      planeInTl.current.play();
+    }
+  }, [play]);
 
-  return (
-    <>
-      {/* <OrbitControls /> */}
-      <group ref={cameraGroup}>
-        <Background backgroundColors={backgroundColors} />
-        <group ref={cameraRail}>
-          <PerspectiveCamera position={[0, 0, 5]} fov={30} makeDefault />
+  return useMemo(
+    () => (
+      <>
+        {/* <OrbitControls /> */}
+        <group ref={cameraGroup}>
+          <Background backgroundColors={backgroundColors} />
+          <group ref={cameraRail}>
+            <PerspectiveCamera ref={camera} position={[0, 0, 5]} fov={30} makeDefault />
+          </group>
+          <group ref={airplane}>
+            <Float floatIntensity={1} speed={1.5} rotationIntensity={0.5}>
+              <Airplane rotation-y={Math.PI / 2} scale={[0.2, 0.2, 0.2]} position-y={0.1} />
+            </Float>
+          </group>
         </group>
-        <group ref={airplane}>
-          <Float floatIntensity={1} speed={1.5} rotationIntensity={0.5}>
-            <Airplane rotation-y={Math.PI / 2} scale={[0.2, 0.2, 0.2]} position-y={0.1} />
-          </Float>
+
+        {textSections.map((textSection, index) => (
+          <TextSection {...textSection} key={index} />
+        ))}
+
+        {/* LINE */}
+        {/* CREATE A LINE WITH PERSPECTIVE WITH EXTRUDEGEOMETRY */}
+        <group position-y={-2}>
+          <mesh>
+            <extrudeGeometry
+              args={[
+                shape,
+                {
+                  steps: LINE_NB_POINTS,
+                  bevelEnabled: false,
+                  extrudePath: curve,
+                }
+              ]}
+            />
+            <meshStandardMaterial
+              ref={lineMaterialRef}
+              color={"white"}
+              transparent
+              opacity={1}
+              envMapIntensity={2} // raise envMapIntensity to be more impacted by the environment colors
+            />
+          </mesh>
         </group>
-      </group>
 
-      {textSections.map((textSection, index) => (
-        <TextSection {...textSection} key={index} />
-      ))}
-
-      {/* LINE */}
-      {/* CREATE A LINE WITH PERSPECTIVE WITH EXTRUDEGEOMETRY */}
-      <group position-y={-2}>
-        <mesh>
-          <extrudeGeometry
-            args={[
-              shape,
-              {
-                steps: LINE_NB_POINTS,
-                bevelEnabled: false,
-                extrudePath: curve,
-              }
-            ]}
-          />
-          <meshStandardMaterial
-            color={"white"}
-            transparent
-            opacity={1}
-            envMapIntensity={2} // raise envMapIntensity to be more impacted by the environment colors
-          />
-        </mesh>
-      </group>
-
-      {/* CLOUDS */}
-      {clouds.map((cloud, index) => (
-        <Cloud {...cloud} key={index} />
-      ))}
-    </>)
+        {/* CLOUDS */}
+        {clouds.map((cloud, index) => (
+          <Cloud sceneOpacity={sceneOpacity} {...cloud} key={index} />
+        ))}
+      </>
+    ),
+    []);
 }
 
 export default Experience;
